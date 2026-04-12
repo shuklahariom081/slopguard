@@ -1,7 +1,88 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Shield, Check, Zap } from 'lucide-react'
+import { createClient } from '../../lib/supabase'
+import { api, setAuthToken } from '../../lib/api'
+
+declare global {
+  interface Window {
+    Razorpay: any
+  }
+}
 
 export default function PricingPage() {
+  const router = useRouter()
+  const supabase = createClient()
+  const [loading, setLoading] = useState<string | null>(null)
+
+  const handleUpgrade = async (plan: string) => {
+    setLoading(plan)
+
+    try {
+      // Check if logged in
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+
+      setAuthToken(session.access_token)
+
+      // Create order
+      const orderRes = await api.post('/payment/create-order', { plan })
+      const order = orderRes.data
+
+      // Load Razorpay script
+      const script = document.createElement('script')
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      document.body.appendChild(script)
+
+      script.onload = () => {
+        const options = {
+          key: order.key_id,
+          amount: order.amount,
+          currency: order.currency,
+          name: 'SlopGuard',
+          description: order.description,
+          order_id: order.order_id,
+          prefill: {
+            email: order.user_email,
+          },
+          theme: {
+            color: '#6366f1',
+          },
+          handler: async (response: any) => {
+            try {
+              // Verify payment
+              await api.post('/payment/verify', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                plan,
+              })
+
+              alert('🎉 Payment successful! You are now a Pro user.')
+              router.push('/scan')
+            } catch (err) {
+              alert('Payment verification failed. Please contact support.')
+            }
+          },
+        }
+
+        const rzp = new window.Razorpay(options)
+        rzp.open()
+      }
+
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Something went wrong.')
+    } finally {
+      setLoading(null)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#0f1117]">
 
@@ -13,7 +94,7 @@ export default function PricingPage() {
             Slop<span className="text-indigo-400">Guard</span>
           </span>
         </Link>
-        <Link href="/login" className="bg-indigo-600 hover:bg-indigo-700 text-white 
+        <Link href="/login" className="bg-indigo-600 hover:bg-indigo-700 text-white
                                        text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
           Get Started
         </Link>
@@ -32,7 +113,6 @@ export default function PricingPage() {
             <div className="text-[#8892a4] text-sm font-medium mb-2">FREE</div>
             <div className="text-4xl font-bold text-white mb-1">₹0</div>
             <div className="text-[#8892a4] text-sm mb-6">forever</div>
-
             <div className="space-y-3 mb-8">
               {[
                 '10 scans per day',
@@ -47,10 +127,9 @@ export default function PricingPage() {
                 </div>
               ))}
             </div>
-
             <Link href="/login"
-              className="block w-full text-center border border-indigo-500 text-indigo-400 
-                         hover:bg-indigo-500 hover:text-white font-semibold py-2.5 
+              className="block w-full text-center border border-indigo-500 text-indigo-400
+                         hover:bg-indigo-500 hover:text-white font-semibold py-2.5
                          rounded-lg transition-all duration-200">
               Get Started Free
             </Link>
@@ -58,14 +137,13 @@ export default function PricingPage() {
 
           {/* Pro Monthly */}
           <div className="bg-indigo-600/10 border-2 border-indigo-500 rounded-2xl p-8 text-left relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600
                             text-white text-xs font-bold px-4 py-1 rounded-full">
               MOST POPULAR
             </div>
             <div className="text-indigo-400 text-sm font-medium mb-2">PRO MONTHLY</div>
             <div className="text-4xl font-bold text-white mb-1">₹299</div>
             <div className="text-[#8892a4] text-sm mb-6">per month</div>
-
             <div className="space-y-3 mb-8">
               {[
                 'Unlimited scans',
@@ -83,30 +161,29 @@ export default function PricingPage() {
                 </div>
               ))}
             </div>
-
-            <Link href="/login"
-              className="block w-full text-center bg-indigo-600 hover:bg-indigo-700 
-                         text-white font-semibold py-2.5 rounded-lg transition-all 
+            <button
+              onClick={() => handleUpgrade('pro_monthly')}
+              disabled={loading === 'pro_monthly'}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50
+                         text-white font-semibold py-2.5 rounded-lg transition-all
                          duration-200 flex items-center justify-center gap-2">
-              <Zap size={16} /> Upgrade to Pro
-            </Link>
+              <Zap size={16} />
+              {loading === 'pro_monthly' ? 'Processing...' : 'Upgrade to Pro'}
+            </button>
           </div>
 
           {/* Pro Annual */}
           <div className="bg-[#1a1d27] border border-[#2e3348] rounded-2xl p-8 text-left relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-600 
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-600
                             text-white text-xs font-bold px-4 py-1 rounded-full">
               SAVE 30%
             </div>
             <div className="text-green-400 text-sm font-medium mb-2">PRO ANNUAL</div>
-            <div className="flex items-end gap-2 mb-1">
-              <div className="text-4xl font-bold text-white">₹2,499</div>
-            </div>
+            <div className="text-4xl font-bold text-white mb-1">₹2,499</div>
             <div className="text-[#8892a4] text-sm mb-1">per year</div>
             <div className="text-green-400 text-xs mb-6">
               ₹208/month · Save ₹1,089 vs monthly
             </div>
-
             <div className="space-y-3 mb-8">
               {[
                 'Everything in Pro Monthly',
@@ -124,22 +201,24 @@ export default function PricingPage() {
                 </div>
               ))}
             </div>
-
-            <Link href="/login"
-              className="block w-full text-center bg-green-600 hover:bg-green-700
-                         text-white font-semibold py-2.5 rounded-lg transition-all 
+            <button
+              onClick={() => handleUpgrade('pro_annual')}
+              disabled={loading === 'pro_annual'}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50
+                         text-white font-semibold py-2.5 rounded-lg transition-all
                          duration-200 flex items-center justify-center gap-2">
-              <Zap size={16} /> Get Annual Plan
-            </Link>
+              <Zap size={16} />
+              {loading === 'pro_annual' ? 'Processing...' : 'Get Annual Plan'}
+            </button>
           </div>
 
         </div>
 
-        {/* Comparison note */}
-        <div className="mt-8 bg-[#1a1d27] border border-[#2e3348] rounded-xl 
+        {/* Savings note */}
+        <div className="mt-8 bg-[#1a1d27] border border-[#2e3348] rounded-xl
                         px-6 py-4 max-w-xl mx-auto">
           <p className="text-[#8892a4] text-sm">
-            💡 Annual plan saves you <span className="text-green-400 font-semibold">₹1,089</span> per year — 
+            💡 Annual plan saves you <span className="text-green-400 font-semibold">₹1,089</span> per year —
             that's 3+ months free compared to monthly billing.
           </p>
         </div>
@@ -162,7 +241,7 @@ export default function PricingPage() {
             },
             {
               q: 'Is the annual plan really cheaper?',
-              a: 'Yes — ₹2,499/year works out to ₹208/month, saving you ₹1,089 compared to monthly billing.',
+              a: 'Yes — ₹2,499/year works out to ₹208/month, saving you ₹1,089 compared to monthly.',
             },
             {
               q: 'What payment methods are accepted?',
@@ -177,7 +256,7 @@ export default function PricingPage() {
         </div>
 
         {/* Bottom CTA */}
-        <div className="mt-16 bg-indigo-600/10 border border-indigo-500/20 
+        <div className="mt-16 bg-indigo-600/10 border border-indigo-500/20
                         rounded-2xl px-8 py-10">
           <h2 className="text-2xl font-bold text-white mb-3">
             Ready to detect slop at scale?
@@ -187,15 +266,16 @@ export default function PricingPage() {
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/login"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold
                          py-2.5 px-8 rounded-lg transition-colors">
               Start Free
             </Link>
-            <Link href="/login"
-              className="border border-indigo-500 text-indigo-400 hover:bg-indigo-500 
+            <button
+              onClick={() => handleUpgrade('pro_monthly')}
+              className="border border-indigo-500 text-indigo-400 hover:bg-indigo-500
                          hover:text-white font-semibold py-2.5 px-8 rounded-lg transition-colors">
               Upgrade to Pro
-            </Link>
+            </button>
           </div>
         </div>
 

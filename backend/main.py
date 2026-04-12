@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from payments import router as payments_router
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
@@ -47,6 +48,7 @@ app = FastAPI(
     description="Multi-modal AI slop detection — Text, Code, Images",
     version="1.0.0",
 )
+app.include_router(payments_router)
 
 # Allow requests from the Next.js frontend
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
