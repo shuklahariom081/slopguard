@@ -203,7 +203,7 @@ export default function PricingPage() {
 
       {/* Footer */}
       <footer className="border-t border-[#2e3348] px-6 py-8 text-center text-[#8892a4] text-sm">
-        © 2024 SlopGuard · Built by Hariom Shukla ·
+        © 2026 SlopGuard · Built by Hariom Shukla ·
         <Link href="/pricing" className="hover:text-white ml-1">Pricing</Link>
       </footer>
 
