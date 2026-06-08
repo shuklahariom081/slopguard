@@ -1,8 +1,8 @@
 [phases.install]
 cmds = [
   "pip install --upgrade pip",
-  "pip install torch==2.11.0+cpu torchvision --index-url https://download.pytorch.org/whl/cpu",
-  "pip install fastapi uvicorn[standard] supabase transformers pillow numpy python-multipart python-dotenv pydantic httpx"
+  "pip install torch==2.11.0+cpu torchvision==0.20.0+cpu --index-url https://download.pytorch.org/whl/cpu",
+  "pip install fastapi uvicorn[standard] supabase transformers pillow numpy python-multipart python-dotenv pydantic httpx razorpay"
 ]
 
 [start]
