@@ -17,6 +17,8 @@ from typing import Any
 
 from PIL import Image
 from transformers import pipeline
+import os
+import httpx
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -349,11 +351,18 @@ _image_pipe: Any = None
 def _get_image_pipe():
     global _image_pipe
     if _image_pipe is None:
-        _image_pipe = pipeline(
-            "image-classification",
-            model=_IMAGE_MODEL_ID,
-            device=-1,  # CPU; set to 0 for CUDA
-        )
+        try:
+            _image_pipe = pipeline(
+                "image-classification",
+                model=_IMAGE_MODEL_ID,
+                device=-1,  # CPU; set to 0 for CUDA
+            )
+        except MemoryError:
+            # Could not load model in available memory; caller should handle None
+            _image_pipe = None
+        except Exception:
+            # Any other load failure — set to None so we can fallback
+            _image_pipe = None
     return _image_pipe
 
 
@@ -393,6 +402,68 @@ def detect_image_slop(image_path: str | Path) -> dict[str, Any]:
     Classify an image as AI-generated or real using a fine-tuned ViT model,
     optionally supplemented by pixel-level statistics.
     """
+    # If an external inference endpoint is configured, prefer that to avoid
+    # loading heavy models in memory on low-RAM hosts.
+    external_url = os.getenv('IMAGE_INFERENCE_URL')
+    external_key = os.getenv('IMAGE_INFERENCE_KEY')
+    if external_url:
+        try:
+            with open(image_path, 'rb') as f:
+                headers = {}
+                if external_key:
+                    headers['Authorization'] = f'Bearer {external_key}'
+                resp = httpx.post(external_url, files={'file': f}, headers=headers, timeout=30.0)
+                resp.raise_for_status()
+                data = resp.json()
+                # Try to extract a numeric score (0-1) from common response shapes.
+                numeric = None
+                if isinstance(data, dict):
+                    if 'score' in data and isinstance(data['score'], (int, float)):
+                        numeric = float(data['score'])
+                    elif 'predictions' in data and isinstance(data['predictions'], list) and data['predictions']:
+                        p = data['predictions'][0]
+                        if isinstance(p, dict) and 'score' in p:
+                            numeric = float(p['score'])
+                    else:
+                        # scan values for a plausible probability
+                        for v in data.values():
+                            if isinstance(v, (int, float)) and 0.0 <= float(v) <= 1.0:
+                                numeric = float(v)
+                                break
+                if numeric is None:
+                    # unable to parse external response — fall back to local pipeline
+                    pass
+                else:
+                    model_score = numeric * 100
+                    img = Image.open(image_path).convert('RGB')
+                    stats = _analyse_image_statistics(img)
+                    heuristic_adj = 0.0
+                    if 200 < stats["focus_score"] < 2000:
+                        heuristic_adj += 2.0
+                    if stats["channel_std"] < 40:
+                        heuristic_adj += 3.0
+                    final_score = _clamp(model_score + heuristic_adj)
+                    verdict = (
+                        "🚨 AI-Generated Image" if final_score >= 65
+                        else "⚠️ Possibly AI-Generated" if final_score >= 45
+                        else "✅ Likely Real / Human-Made"
+                    )
+                    label_features = {
+                        'External Inference Score': f"{numeric*100:.1f}%",
+                        'Focus Score': f"{stats['focus_score']:.0f}",
+                        'Colour Variance': f"{stats['channel_std']:.1f}",
+                    }
+                    return {
+                        'slop_score': final_score,
+                        'verdict': verdict,
+                        'confidence': _confidence_label(final_score),
+                        'features': label_features,
+                    }
+
+        except Exception:
+            # If external inference fails, fall through to local pipeline below.
+            pass
+
     try:
         img = Image.open(image_path).convert("RGB")
     except Exception as exc:
@@ -405,6 +476,13 @@ def detect_image_slop(image_path: str | Path) -> dict[str, Any]:
 
     try:
         pipe = _get_image_pipe()
+        if pipe is None:
+            return {
+                "slop_score": 0,
+                "verdict": "❌ Model unavailable: insufficient memory",
+                "confidence": "N/A",
+                "features": {"note": "Model could not be loaded. Configure IMAGE_INFERENCE_URL or use an ONNX quantized model for low-memory deployment."},
+            }
         results = pipe(img)
 
         # Build label → score map

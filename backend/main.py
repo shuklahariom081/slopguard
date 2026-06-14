@@ -196,12 +196,15 @@ async def scan_image(
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image.")
 
-    # Save temp file
+    # Save temp file by streaming to disk to avoid holding whole file in memory
     tmp_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
     try:
-        content = await file.read()
         with open(tmp_path, "wb") as f:
-            f.write(content)
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
 
         remaining = await check_and_deduct_credit(current_user)
         result = detect_image_slop(tmp_path)
