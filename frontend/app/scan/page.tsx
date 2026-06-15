@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Shield, FileText, Code, Image, LogOut, History, Zap } from 'lucide-react'
+import { Shield, FileText, Code, Image, LogOut, Zap } from 'lucide-react'
 import { createClient } from '../../lib/supabase'
 import { scanText, scanCode, scanImage, setAuthToken, getCredits } from '../../lib/api'
 import { motion } from 'framer-motion'
@@ -69,28 +69,66 @@ export default function ScanPage() {
       setLoading(false)
     }
   }
-          {/* Right — Result */}
-          <div className="bg-[#1a1d27] border border-[#2e3348] rounded-xl p-6 min-h-[240px]">
-            {!result && !loading && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center text-center gap-3">
-                <Shield size={48} className="text-[#2e3348]" />
-                <p className="text-[#8892a4] text-sm">Your results will appear here</p>
-              </motion.div>
-            )}
 
-            {loading && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center gap-3">
-                <div className="animate-spin text-4xl">⚡</div>
-                <p className="text-[#8892a4] text-sm">Analysing content...</p>
-              </motion.div>
-            )}
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+  }
 
-            {result && !loading && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}>
-                <ResultCard result={result as any} duration={scanDuration ?? undefined} />
-              </motion.div>
-            )}
+  const scoreColor = (score: number) =>
+    score >= 65 ? 'text-red-400' : score >= 40 ? 'text-amber-400' : 'text-green-400'
+
+  const scoreBarColor = (score: number) =>
+    score >= 65 ? 'bg-red-500' : score >= 40 ? 'bg-amber-500' : 'bg-green-500'
+
+  const tabs = [
+    { key: 'text', label: 'Text', icon: <FileText size={14} /> },
+    { key: 'code', label: 'Code', icon: <Code size={14} /> },
+    { key: 'image', label: 'Image', icon: <Image size={14} /> },
+  ] as const
+
+  return (
+    <main className="min-h-screen bg-[#0f1117]">
+
+      {/* Navbar */}
+      <nav className="border-b border-[#2e3348] px-6 py-4 flex justify-between items-center">
+        <Link href="/" className="flex items-center gap-2">
+          <Shield className="text-indigo-500" size={22} />
+          <span className="text-lg font-bold text-white">
+            Slop<span className="text-indigo-400">Guard</span>
+          </span>
+        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/scan" className="bg-indigo-600 hover:bg-indigo-700 text-white 
+                                        text-sm font-medium px-4 py-1.5 rounded-lg transition-colors
+                                        flex items-center gap-1">
+            <Zap size={14} /> New Scan
+          </Link>
+          <span className="text-[#8892a4] text-sm hidden md:block">{userEmail}</span>
+          <button onClick={handleLogout} className="text-[#8892a4] hover:text-white">
+            <LogOut size={16} />
+          </button>
+        </div>
+      </nav>
+
+      <div className="max-w-4xl mx-auto px-6 py-10">
+
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-white">New Scan</h1>
+            <p className="text-[#8892a4] text-sm mt-1">Scan text, code or images for sloppiness</p>
           </div>
+          <div className="text-sm text-[#8892a4]">Credits: {credits ?? '–'}</div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Left — input */}
+          <div className="md:col-span-2 bg-[#1a1d27] border border-[#2e3348] rounded-xl p-6">
+            {/* Tabs */}
+            <div className="flex gap-2 mb-4">
+              {tabs.map(t => (
+                <button
+                  key={t.key}
                   onClick={() => { setTab(t.key); setResult(null); setError('') }}
                   className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
                     tab === t.key
@@ -98,7 +136,10 @@ export default function ScanPage() {
                       : 'bg-[#0f1117] text-[#8892a4] hover:text-white'
                   }`}
                 >
-                  {t.label}
+                  <div className="flex items-center justify-center gap-2">
+                    {t.icon}
+                    <span>{t.label}</span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -173,61 +214,25 @@ export default function ScanPage() {
           </div>
 
           {/* Right — Result */}
-          <div className="bg-[#1a1d27] border border-[#2e3348] rounded-xl p-6">
+          <div className="bg-[#1a1d27] border border-[#2e3348] rounded-xl p-6 min-h-[240px]">
             {!result && !loading && (
-              <div className="h-full flex flex-col items-center justify-center text-center gap-3">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center text-center gap-3">
                 <Shield size={48} className="text-[#2e3348]" />
                 <p className="text-[#8892a4] text-sm">Your results will appear here</p>
-              </div>
+              </motion.div>
             )}
 
             {loading && (
-              <div className="h-full flex flex-col items-center justify-center gap-3">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center gap-3">
                 <div className="animate-spin text-4xl">⚡</div>
                 <p className="text-[#8892a4] text-sm">Analysing content...</p>
-              </div>
+              </motion.div>
             )}
 
             {result && !loading && (
-              <div>
-                {/* Score */}
-                <div className="text-center mb-6">
-                  <div className={`text-6xl font-bold ${scoreColor(result.slop_score)}`}>
-                    {result.slop_score}
-                  </div>
-                  <div className="text-[#8892a4] text-sm mt-1">out of 100</div>
-
-                  {/* Bar */}
-                  <div className="w-full bg-[#0f1117] rounded-full h-3 mt-4">
-                    <div
-                      className={`h-3 rounded-full transition-all duration-700 ${scoreBarColor(result.slop_score)}`}
-                      style={{ width: `${result.slop_score}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Verdict */}
-                <div className="bg-[#0f1117] rounded-lg px-4 py-3 mb-4 text-center">
-                  <p className="text-white font-semibold">{result.verdict}</p>
-                  <p className="text-[#8892a4] text-xs mt-1">Confidence: {result.confidence}</p>
-                </div>
-
-                {/* Features */}
-                <div>
-                  <p className="text-[#8892a4] text-xs font-medium uppercase tracking-wider mb-3">
-                    Feature Breakdown
-                  </p>
-                  <div className="space-y-2">
-                    {Object.entries(result.features).map(([k, v]) => (
-                      <div key={k} className="flex justify-between items-center 
-                                               border-b border-[#2e3348] pb-2">
-                        <span className="text-[#8892a4] text-xs">{k}</span>
-                        <span className="text-white text-xs font-mono">{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}>
+                <ResultCard result={result as any} duration={scanDuration ?? undefined} />
+              </motion.div>
             )}
           </div>
         </div>
