@@ -28,18 +28,18 @@ export default function ResultCard({ result, duration }: { result: Result; durat
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row items-center gap-6 mb-6">
+      <div className="flex flex-col items-center text-center gap-4 mb-6">
         <CircularGauge score={result.slop_score} />
-        <div className="flex-1">
+        <div className="w-full">
           <div className="text-lg font-semibold text-white">{result.verdict}</div>
           <div className="text-xs text-[#8892a4] mt-1">Confidence: {result.confidence}</div>
           {typeof duration === 'number' && (
-            <div className="text-xs text-[#8892a4] mt-2">Scan time: {duration} ms</div>
+            <div className="text-xs text-[#8892a4] mt-1">Scan time: {duration} ms</div>
           )}
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex justify-center gap-2">
             <Button variant="secondary" onClick={copyResults}>Copy JSON</Button>
-            <Button variant="ghost" onClick={downloadReport}>Download</Button>
+            <Button variant="secondary" onClick={downloadReport}>Download</Button>
           </div>
         </div>
       </div>
