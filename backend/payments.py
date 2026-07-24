@@ -3,12 +3,11 @@ payments.py — Razorpay Payment Integration
 ==========================================
 Handles order creation and payment verification for SlopGuard Pro.
 """
-
 import hmac
 import hashlib
 import os
 import razorpay
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Annotated
 
@@ -41,7 +40,7 @@ PLANS = {
 
 
 class CreateOrderRequest(BaseModel):
-    plan: str  # "pro_monthly" or "pro_annual"
+    plan: str
 
 
 class VerifyPaymentRequest(BaseModel):
@@ -94,7 +93,7 @@ async def verify_payment(
     """Verify payment signature and upgrade user to Pro."""
     webhook_secret = os.getenv("RAZORPAY_KEY_SECRET", "")
 
-    # Verify signature
+    # 1. Verify HMAC signature
     message = f"{body.razorpay_order_id}|{body.razorpay_payment_id}"
     expected = hmac.new(
         webhook_secret.encode(),
@@ -105,11 +104,37 @@ async def verify_payment(
     if not hmac.compare_digest(expected, body.razorpay_signature):
         raise HTTPException(status_code=400, detail="Invalid payment signature.")
 
-    # Upgrade user to Pro
-    credits_limit = 999999  # unlimited
+    # 2. Fetch the actual order from Razorpay and cross-check
+    try:
+        order = client.order.fetch(body.razorpay_order_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not verify order with Razorpay.")
+
+    order_notes = order.get("notes", {})
+
+    # Ensure order belongs to this user
+    if str(order_notes.get("user_id")) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Order does not belong to this user.")
+
+    # Ensure plan matches what was actually ordered
+    if order_notes.get("plan") != body.plan:
+        raise HTTPException(status_code=400, detail="Plan mismatch.")
+
+    # Ensure amount matches the plan price
+    if body.plan not in PLANS:
+        raise HTTPException(status_code=400, detail="Invalid plan.")
+    if int(order.get("amount", 0)) != PLANS[body.plan]["amount"]:
+        raise HTTPException(status_code=400, detail="Amount mismatch.")
+
+    # 3. Idempotency check — don't process the same payment twice
+    existing = supabase.table("profiles").select("razorpay_payment_id").eq("id", current_user.id).execute()
+    if existing.data and existing.data[0].get("razorpay_payment_id") == body.razorpay_payment_id:
+        return {"success": True, "message": "Already processed.", "plan": "pro"}
+
+    # 4. Upgrade user to Pro
     supabase.table("profiles").update({
         "plan": "pro",
-        "credits_limit": credits_limit,
+        "credits_limit": 999999,
         "razorpay_payment_id": body.razorpay_payment_id,
         "razorpay_order_id": body.razorpay_order_id,
     }).eq("id", current_user.id).execute()
