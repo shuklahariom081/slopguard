@@ -142,7 +142,7 @@ export default function PricingPage() {
               MOST POPULAR
             </div>
             <div className="text-indigo-400 text-sm font-medium mb-2">PRO MONTHLY</div>
-            <div className="text-4xl font-bold text-white mb-1">₹299</div>
+            <div className="text-4xl font-bold text-white mb-1">₹149</div>
             <div className="text-[#8892a4] text-sm mb-6">per month</div>
             <div className="space-y-3 mb-8">
               {[
@@ -179,10 +179,10 @@ export default function PricingPage() {
               SAVE 30%
             </div>
             <div className="text-green-400 text-sm font-medium mb-2">PRO ANNUAL</div>
-            <div className="text-4xl font-bold text-white mb-1">₹2,499</div>
+            <div className="text-4xl font-bold text-white mb-1">₹1,199</div>
             <div className="text-[#8892a4] text-sm mb-1">per year</div>
             <div className="text-green-400 text-xs mb-6">
-              ₹208/month · Save ₹1,089 vs monthly
+              ₹100/month · Save ₹588 vs monthly
             </div>
             <div className="space-y-3 mb-8">
               {[
@@ -218,7 +218,7 @@ export default function PricingPage() {
         <div className="mt-8 bg-[#1a1d27] border border-[#2e3348] rounded-xl
                         px-6 py-4 max-w-xl mx-auto">
           <p className="text-[#8892a4] text-sm">
-            💡 Annual plan saves you <span className="text-green-400 font-semibold">₹1,089</span> per year —
+            💡 Annual plan saves you <span className="text-green-400 font-semibold">₹588</span> per year —
             that's 3+ months free compared to monthly billing.
           </p>
         </div>
@@ -241,7 +241,7 @@ export default function PricingPage() {
             },
             {
               q: 'Is the annual plan really cheaper?',
-              a: 'Yes — ₹2,499/year works out to ₹208/month, saving you ₹1,089 compared to monthly.',
+              a: 'Yes — ₹1,199/year works out to ₹100/month, saving you ₹588 compared to monthly.',
             },
             {
               q: 'What payment methods are accepted?',

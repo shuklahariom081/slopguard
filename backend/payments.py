@@ -28,12 +28,12 @@ client = razorpay.Client(
 # Plan prices in paise (1 INR = 100 paise)
 PLANS = {
     "pro_monthly": {
-        "amount": 29900,      # ₹299
+        "amount": 14900,      # ₹149
         "currency": "INR",
         "description": "SlopGuard Pro — Monthly",
     },
     "pro_annual": {
-        "amount": 249900,     # ₹2,499
+        "amount": 119900,     # ₹1,199
         "currency": "INR",
         "description": "SlopGuard Pro — Annual",
     },
