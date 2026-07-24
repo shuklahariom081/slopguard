@@ -460,8 +460,8 @@ def detect_image_slop(image_path: str | Path) -> dict[str, Any]:
                         'features': label_features,
                     }
 
-        except Exception:
-            # If external inference fails, fall through to local pipeline below.
+        except Exception as e:
+            print(f"[IMAGE_INFERENCE] External call failed: {type(e).__name__}: {e}")
             pass
 
     try:
