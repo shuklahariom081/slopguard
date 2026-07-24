@@ -204,14 +204,16 @@ _CODE_AI_PROSE = re.compile(
 
 # Generic, over-descriptive docstring patterns
 _GENERIC_DOCSTRING = re.compile(
-    r'""".*?(?:initializes|constructs|creates|represents|returns)\s+(?:a|an|the)\s+\w+.*?"""',
+    r'""".*?(?:initializes|constructs|creates|represents|returns|Args:|Returns:|Parameters:|Raises:|Example:).*?"""',
     re.DOTALL | re.IGNORECASE,
 )
 
 # Patterns suggesting over-engineered boilerplate
 _BOILERPLATE = re.compile(
     r"(?i)(TODO:.*?implement|pass\s*#.*?(implement|todo|fill|placeholder)|"
-    r"raise NotImplementedError|# example usage|# --- .{3,40} ---)",
+    r"raise NotImplementedError|# example usage|# --- .{3,40} ---|"
+    r"if __name__\s*==\s*['\"]__main__['\"]|"
+    r"def main\(\):|# driver code|# test the function)",
 )
 
 # Meaningful inline comments (not separators or section headers)
@@ -286,18 +288,18 @@ def detect_code_slop(code: str) -> dict[str, Any]:
     score = 0.0
 
     # Heavy commenting is the strongest AI signal
-    if comment_ratio > 0.40:
-        score += (comment_ratio - 0.40) * 120   # steep penalty above 40 %
-    elif comment_ratio > 0.25:
-        score += (comment_ratio - 0.25) * 60
+    if comment_ratio > 0.30:
+        score += (comment_ratio - 0.30) * 120
+    elif comment_ratio > 0.15:
+        score += (comment_ratio - 0.15) * 60
 
     # Excessive blank lines (over-formatted)
     if blank_ratio > 0.30:
         score += (blank_ratio - 0.30) * 40
 
     # Inline comment over-saturation (AI explains every line)
-    if inline_comment_ratio > 0.35:
-        score += (inline_comment_ratio - 0.35) * 50
+    if inline_comment_ratio > 0.20:
+        score += (inline_comment_ratio - 0.20) * 50
 
     # Prose phrases in comments
     score += ai_prose_hits * 18
