@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image
-from transformers import pipeline
 import os
 import httpx
 
@@ -352,6 +351,7 @@ def _get_image_pipe():
     global _image_pipe
     if _image_pipe is None:
         try:
+            from transformers import pipeline
             _image_pipe = pipeline(
                 "image-classification",
                 model=_IMAGE_MODEL_ID,
